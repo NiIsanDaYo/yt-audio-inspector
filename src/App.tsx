@@ -28,7 +28,7 @@ function fileNotices(file: File): string[] {
     notices.push('動画は音声トラックのみを解析します。可能なら音声ファイル（WAV / FLAC など）での確認を推奨します。');
   }
   if (file.size > LARGE_FILE_NOTICE_BYTES) {
-    notices.push('大容量ファイルはブラウザのメモリを多く使い、解析が重くなる・失敗することがあります。音声ファイルの利用を推奨します。');
+    notices.push('大容量ファイルは解析に時間がかかることがあります。2GBを超える場合は音声ファイルを書き出してから確認してください。');
   }
   return notices;
 }
@@ -198,6 +198,19 @@ export default function App() {
     worker.postMessage({ type: 'analyze', file });
   }, []);
 
+  const cancelAnalysis = useCallback(() => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    handledFileKeyRef.current = null;
+    clearFileFallback();
+    setState('idle');
+    setReport(null);
+    setError(null);
+    setNotices([]);
+    setProgress(0);
+    setProgressMessage('');
+  }, [clearFileFallback]);
+
   const handleFiles = useCallback((files: FileList | null, force = false) => {
     const file = files?.item(0);
     if (!file) return;
@@ -285,6 +298,11 @@ export default function App() {
           </div>
           <div className="progress-track">
             <div style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+          <div className="progress-actions">
+            <button className="cancel-button" type="button" onClick={cancelAnalysis}>
+              解析を中止
+            </button>
           </div>
         </section>
       )}

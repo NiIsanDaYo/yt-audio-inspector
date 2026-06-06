@@ -69,6 +69,50 @@ test('128 kbps MP3 is flagged for double compression risk', async ({ page }) => 
   expect(codecRisk?.value).toContain('kbps');
 });
 
+test('analysis can be cancelled while ffmpeg is loading', async ({ page }) => {
+  let cancelled = false;
+  let releaseWasm: (() => void) | undefined;
+  let resolveWasmRequestStarted: () => void = () => {};
+  const wasmRequestStarted = new Promise<void>((resolve) => {
+    resolveWasmRequestStarted = resolve;
+  });
+
+  await page.route('**/ffmpeg-core/ffmpeg-core.wasm', async (route) => {
+    if (!cancelled) {
+      resolveWasmRequestStarted();
+      await new Promise<void>((release) => {
+        releaseWasm = release;
+      });
+    }
+    await route.abort('aborted');
+  });
+
+  await page.addInitScript(() => {
+    (window as TestHookWindow).__YTMI_ENABLE_TEST_HOOKS = true;
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => Boolean((window as TestHookWindow).__YTMI_APP_READY))).toBe(true);
+
+  await setFixtureFile(page, 'good-48k24.wav');
+  await expect(page.getByText('準備中')).toBeVisible({ timeout: 10_000 });
+  await Promise.race([
+    wasmRequestStarted,
+    new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error('ffmpeg wasm request was not intercepted')), 10_000);
+    })
+  ]);
+
+  const cancelButton = page.getByRole('button', { name: '解析を中止' });
+  await expect(cancelButton).toBeVisible();
+  await cancelButton.click();
+  cancelled = true;
+  releaseWasm?.();
+
+  await expect(cancelButton).toBeHidden();
+  await expect(page.getByText('結果', { exact: true })).toBeHidden();
+  await expect(page.getByRole('alert')).toBeHidden();
+});
+
 test('video with audio is analyzed and video without audio shows a clear error', async ({ page }) => {
   const report = await analyzeFixture(page, 'video-audio.mp4');
   expect(report.metadata.extension).toBe('mp4');
