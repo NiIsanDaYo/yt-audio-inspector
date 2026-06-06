@@ -17,6 +17,41 @@ function u32le(target: Uint8Array, offset: number, value: number): void {
   target[offset + 3] = (value >> 24) & 0xff;
 }
 
+function u16be(target: Uint8Array, offset: number, value: number): void {
+  target[offset] = (value >> 8) & 0xff;
+  target[offset + 1] = value & 0xff;
+}
+
+function u32be(target: Uint8Array, offset: number, value: number): void {
+  target[offset] = (value >> 24) & 0xff;
+  target[offset + 1] = (value >> 16) & 0xff;
+  target[offset + 2] = (value >> 8) & 0xff;
+  target[offset + 3] = value & 0xff;
+}
+
+function aifcHeader(compression: string): Uint8Array {
+  // FORM + size + AIFC + COMM chunk (size=26: 18 base + 4 compression + 4 name)
+  const commSize = 26;
+  const totalSize = 4 + 8 + commSize; // AIFC + COMM header + COMM body
+  const data = new Uint8Array(12 + 8 + commSize);
+  writeAscii(data, 0, 'FORM');
+  u32be(data, 4, totalSize);
+  writeAscii(data, 8, 'AIFC');
+  // COMM chunk
+  writeAscii(data, 12, 'COMM');
+  u32be(data, 16, commSize);
+  u16be(data, 20, 2);           // channels
+  u32be(data, 22, 48000);       // numFrames
+  u16be(data, 26, 16);          // bitDepth
+  // IEEE 754 extended 80-bit for 48000 Hz: exponent=16397, mantissa=0xBB80...
+  data.set([0x40, 0x0d, 0xbb, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], 28);
+  // compression type (4 bytes) at offset 38
+  writeAscii(data, 38, compression.padEnd(4, ' '));
+  // compression name (pascal string, 1 byte length + 3 padding)
+  data[42] = 0; // empty name
+  return data;
+}
+
 function wavHeader(formatCode: number, bits: number, extra?: Uint8Array): Uint8Array {
   const fmtSize = 16 + (extra?.length ?? 0);
   const data = new Uint8Array(12 + 8 + fmtSize + 8);
@@ -71,6 +106,34 @@ describe('parseHeaderMetadata', () => {
 
   it('returns an empty hint for unknown headers', () => {
     expect(parseHeaderMetadata(new Uint8Array([1, 2, 3]))).toEqual({});
+  });
+
+  it('classifies AIFF-C NONE as lossless', () => {
+    const hint = parseHeaderMetadata(aifcHeader('NONE'));
+    expect(hint.container).toBe('AIFC');
+    expect(hint.codecClass).toBe('lossless');
+    expect(hint.codec).toBe('AIFF-C PCM');
+  });
+
+  it('classifies AIFF-C ulaw/alaw as lossy', () => {
+    const ulaw = parseHeaderMetadata(aifcHeader('ulaw'));
+    expect(ulaw.codecClass).toBe('lossy');
+    expect(ulaw.codec).toBe('AIFF-C ulaw');
+
+    const alaw = parseHeaderMetadata(aifcHeader('alaw'));
+    expect(alaw.codecClass).toBe('lossy');
+  });
+
+  it('classifies AIFF-C with unknown compression as unknown', () => {
+    const hint = parseHeaderMetadata(aifcHeader('XYZW'));
+    expect(hint.codecClass).toBe('unknown');
+    expect(hint.codec).toBe('AIFF-C XYZW');
+  });
+
+  it('classifies AIFF-C sowt as lossless', () => {
+    const hint = parseHeaderMetadata(aifcHeader('sowt'));
+    expect(hint.codecClass).toBe('lossless');
+    expect(hint.codec).toContain('sowt');
   });
 });
 
