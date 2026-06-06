@@ -13,7 +13,7 @@ Integrated LUFS は参考値として表示しますが、総合判定には含�
 ## 対応形式
 
 - **音声（推奨）**: WAV / AIFF / FLAC / M4A / AAC / MP3 / Opus / OGG
-- **動画（音声トラックを解析）**: MP4 / MOV / MKV / WebM
+- **動画（音声トラックを解析）**: MP4 / MOV / MKV / WebM / AVI / WMV / FLV / MPG
 
 動画は音声トラックのみを解析します。200 MB を超えるファイルには警告が出ます。500 MB を超えるファイルはブラウザのメモリ制限を考慮してブロックされます。
 
@@ -64,6 +64,7 @@ src/
     diagnostics.ts        5 項目の判定ルール・総合判定
     ffmpegLog.ts          ebur128 ログパーサ
     fileLimits.ts         ファイルサイズ定数
+    fileTypes.ts          対応拡張子・file input accept 定義
     format.ts             表示用フォーマッタ
     metadataParsers.ts    WAV / AIFF / FLAC ヘッダパーサ
 tests/
