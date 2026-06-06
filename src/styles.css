@@ -75,6 +75,76 @@ p {
   padding: 64px 0 96px;
 }
 
+/* ---------- Footer ---------- */
+.site-footer {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--gray-300);
+}
+
+.footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.footer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding: 10px 14px;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--gray-700);
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.footer-card:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 14px 28px -22px rgb(15 23 42 / 0.35),
+              0 4px 10px -6px rgb(15 23 42 / 0.12);
+  transform: translateY(-1px);
+}
+
+.footer-card:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.footer-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-card-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.footer-card-arrow {
+  color: var(--gray-400);
+  font-size: 0.75rem;
+  transition: color 0.15s ease;
+}
+
+.footer-card:hover .footer-card-arrow {
+  color: var(--gray-700);
+}
+
+@media (max-width: 480px) {
+  .footer-links {
+    grid-template-columns: 1fr;
+  }
+}
+
 .hero {
   margin-bottom: 48px;
 }
