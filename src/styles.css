@@ -288,6 +288,33 @@ h1 {
   background: var(--gray-200);
 }
 
+.error-actions {
+  display: flex;
+  margin-top: 14px;
+}
+
+.secondary-button {
+  border: 1px solid rgb(154 58 48 / 0.24);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--warn-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0.54rem 0.9rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.secondary-button:hover {
+  border-color: rgb(154 58 48 / 0.4);
+  background: #fff8f6;
+}
+
+.secondary-button:active {
+  background: #f9eeeb;
+}
+
 @keyframes shimmer {
   0%, 100% { background-position: 200% 0; }
   50% { background-position: -200% 0; }
