@@ -81,6 +81,16 @@ function expectWithinHalfDb(actual: number | null, expected: number | null) {
   expect(Math.abs(actual! - expected!)).toBeLessThanOrEqual(0.5);
 }
 
+test('128 kbps MP3 is flagged for double compression risk', async ({ page }) => {
+  const report = await analyzeFixture(page, 'lossy-128k.mp3');
+  const codecRisk = report.diagnostics.find((item) => item.id === 'codec-risk');
+  expect(report.metadata.codecClass).toBe('lossy');
+  expect(report.metadata.container).toBe('MP3');
+  expect(codecRisk?.level).toBe('caution');
+  expect(codecRisk?.value).toContain('MP3');
+  expect(codecRisk?.value).toContain('kbps');
+});
+
 test('48kHz 24-bit PCM WAV is diagnosed and matches native ffmpeg ebur128', async ({ page }) => {
   const expectedPath = join(fixturesDir, 'expected-ebur128.json');
   expect(existsSync(expectedPath)).toBeTruthy();
@@ -94,16 +104,6 @@ test('48kHz 24-bit PCM WAV is diagnosed and matches native ffmpeg ebur128', asyn
   expectWithinHalfDb(report.measurements.integratedLufs, expected.integratedLufs);
   expectWithinHalfDb(report.measurements.truePeakDbtp, expected.truePeakDbtp);
   await expect(page.getByText('ファイルはアップロードされません')).toBeVisible();
-});
-
-test('128 kbps MP3 is flagged for double compression risk', async ({ page }) => {
-  const report = await analyzeFixture(page, 'lossy-128k.mp3');
-  const codecRisk = report.diagnostics.find((item) => item.id === 'codec-risk');
-  expect(report.metadata.codecClass).toBe('lossy');
-  expect(report.metadata.container).toBe('MP3');
-  expect(codecRisk?.level).toBe('caution');
-  expect(codecRisk?.value).toContain('MP3');
-  expect(codecRisk?.value).toContain('kbps');
 });
 
 test('analysis can be cancelled while ffmpeg is loading', async ({ page }) => {
