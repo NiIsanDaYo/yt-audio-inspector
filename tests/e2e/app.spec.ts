@@ -15,14 +15,32 @@ test.beforeAll(() => {
   execFileSync('node', ['scripts/generate-fixtures.mjs'], { stdio: 'inherit' });
 });
 
+async function waitForAnalysisSignal(page: import('@playwright/test').Page): Promise<boolean> {
+  const signal = page.locator('.progress-panel, .result, .error-panel');
+  try {
+    await expect(signal.first()).toBeVisible({ timeout: 5_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function setFixtureFile(page: import('@playwright/test').Page, fileName: string): Promise<void> {
   const input = page.locator('input[type="file"]');
-  await expect(input).toBeEnabled();
-  await input.setInputFiles(join(fixturesDir, fileName));
-  await input.evaluate((element) => {
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  const fixturePath = join(fixturesDir, fileName);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await expect(input).toBeEnabled();
+    await input.setInputFiles(fixturePath);
+    await input.evaluate((element) => {
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    if (await waitForAnalysisSignal(page)) return;
+    await input.evaluate((element: HTMLInputElement) => {
+      element.value = '';
+    });
+  }
+  throw new Error(`File selection did not start analysis: ${fileName}`);
 }
 
 async function analyzeFixture(page: import('@playwright/test').Page, fileName: string): Promise<AnalysisReport> {
