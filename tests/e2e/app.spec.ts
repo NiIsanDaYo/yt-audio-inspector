@@ -12,10 +12,7 @@ test.beforeAll(() => {
 
 async function analyzeFixture(page: import('@playwright/test').Page, fileName: string): Promise<AnalysisReport> {
   await page.goto('/');
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.locator('input[type="file"]').click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(join(fixturesDir, fileName));
+  await page.setInputFiles('input[type="file"]', join(fixturesDir, fileName));
   await expect(page.getByText('結果', { exact: true })).toBeVisible({ timeout: 120_000 });
   const report = await page.evaluate(() => (window as typeof window & { __YTMI_LAST_REPORT?: AnalysisReport }).__YTMI_LAST_REPORT);
   expect(report).toBeTruthy();
