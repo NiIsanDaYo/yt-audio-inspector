@@ -5,19 +5,35 @@ import { test, expect } from '@playwright/test';
 import type { AnalysisReport } from '../../src/types';
 
 const fixturesDir = join(process.cwd(), 'tests', 'fixtures');
+type TestHookWindow = typeof window & {
+  __YTMI_ENABLE_TEST_HOOKS?: boolean;
+  __YTMI_APP_READY?: boolean;
+  __YTMI_LAST_REPORT?: AnalysisReport;
+};
 
 test.beforeAll(() => {
   execFileSync('node', ['scripts/generate-fixtures.mjs'], { stdio: 'inherit' });
 });
 
+async function setFixtureFile(page: import('@playwright/test').Page, fileName: string): Promise<void> {
+  const input = page.locator('input[type="file"]');
+  await expect(input).toBeEnabled();
+  await input.setInputFiles(join(fixturesDir, fileName));
+  await input.evaluate((element) => {
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 async function analyzeFixture(page: import('@playwright/test').Page, fileName: string): Promise<AnalysisReport> {
   await page.addInitScript(() => {
-    (window as typeof window & { __YTMI_ENABLE_TEST_HOOKS?: boolean }).__YTMI_ENABLE_TEST_HOOKS = true;
+    (window as TestHookWindow).__YTMI_ENABLE_TEST_HOOKS = true;
   });
   await page.goto('/');
-  await page.setInputFiles('input[type="file"]', join(fixturesDir, fileName));
+  await expect.poll(() => page.evaluate(() => Boolean((window as TestHookWindow).__YTMI_APP_READY))).toBe(true);
+  await setFixtureFile(page, fileName);
   await expect(page.getByText('結果', { exact: true })).toBeVisible({ timeout: 120_000 });
-  const report = await page.evaluate(() => (window as typeof window & { __YTMI_LAST_REPORT?: AnalysisReport }).__YTMI_LAST_REPORT);
+  const report = await page.evaluate(() => (window as TestHookWindow).__YTMI_LAST_REPORT);
   expect(report).toBeTruthy();
   return report!;
 }
@@ -61,7 +77,7 @@ test('video with audio is analyzed and video without audio shows a clear error',
   await expect(page.getByText('動画は音声トラックのみを解析します')).toBeVisible();
 
   await page.goto('/');
-  await page.setInputFiles('input[type="file"]', join(fixturesDir, 'video-no-audio.mp4'));
+  await setFixtureFile(page, 'video-no-audio.mp4');
   await expect(page.getByRole('alert')).toContainText('音声ストリーム', { timeout: 120_000 });
 });
 
@@ -77,12 +93,12 @@ test('44.1kHz audio is informational and clipped float WAV is warning', async ({
 
 test('invalid, broken, and zero-length files show clear errors', async ({ page }) => {
   await page.goto('/');
-  await page.setInputFiles('input[type="file"]', join(fixturesDir, 'not-audio.txt'));
+  await setFixtureFile(page, 'not-audio.txt');
   await expect(page.getByRole('alert')).toContainText('非対応形式');
 
-  await page.setInputFiles('input[type="file"]', join(fixturesDir, 'broken.wav'));
+  await setFixtureFile(page, 'broken.wav');
   await expect(page.getByRole('alert')).toBeVisible({ timeout: 120_000 });
 
-  await page.setInputFiles('input[type="file"]', join(fixturesDir, 'zero.wav'));
+  await setFixtureFile(page, 'zero.wav');
   await expect(page.getByRole('alert')).toContainText('長さ0', { timeout: 120_000 });
 });

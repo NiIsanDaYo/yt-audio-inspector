@@ -10,6 +10,7 @@ const SEVERITY_RANK: Record<Severity, number> = { normal: 0, info: 1, caution: 2
 type AppState = 'idle' | 'analyzing' | 'done' | 'error';
 type TestHookWindow = typeof window & {
   __YTMI_ENABLE_TEST_HOOKS?: boolean;
+  __YTMI_APP_READY?: boolean;
   __YTMI_LAST_REPORT?: AnalysisReport;
 };
 
@@ -144,6 +145,13 @@ export default function App() {
     };
   }, [clearFileFallback]);
 
+  useEffect(() => {
+    const testWindow = window as TestHookWindow;
+    if (testWindow.__YTMI_ENABLE_TEST_HOOKS) {
+      testWindow.__YTMI_APP_READY = true;
+    }
+  }, []);
+
   const fileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
 
   const analyzeFile = useCallback((file: File) => {
@@ -254,6 +262,7 @@ export default function App() {
             handledFileKeyRef.current = null;
             startFileFallback(event.currentTarget);
           }}
+          onInput={(event) => handleFiles(event.currentTarget.files)}
           onChange={(event) => handleFiles(event.target.files)}
         />
       </section>
