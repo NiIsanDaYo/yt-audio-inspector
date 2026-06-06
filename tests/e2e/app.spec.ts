@@ -11,6 +11,9 @@ test.beforeAll(() => {
 });
 
 async function analyzeFixture(page: import('@playwright/test').Page, fileName: string): Promise<AnalysisReport> {
+  await page.addInitScript(() => {
+    (window as typeof window & { __YTMI_ENABLE_TEST_HOOKS?: boolean }).__YTMI_ENABLE_TEST_HOOKS = true;
+  });
   await page.goto('/');
   await page.setInputFiles('input[type="file"]', join(fixturesDir, fileName));
   await expect(page.getByText('結果', { exact: true })).toBeVisible({ timeout: 120_000 });

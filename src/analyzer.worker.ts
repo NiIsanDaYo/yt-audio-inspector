@@ -15,11 +15,9 @@ import type {
 import { buildDiagnostics, codecClassFromBoolean } from './lib/diagnostics';
 import { classifyCodec, friendlyCodecName, friendlyContainerName } from './lib/codec';
 import { MAX_ANALYSIS_FILE_BYTES } from './lib/fileLimits';
+import { AUDIO_EXTENSION_SET, VIDEO_EXTENSION_SET, extensionFromName } from './lib/fileTypes';
 import { parseEbur128Summary } from './lib/ffmpegLog';
 import { parseHeaderMetadata } from './lib/metadataParsers';
-
-const ACCEPTED_EXTENSIONS = new Set(['wav', 'wave', 'aif', 'aiff', 'flac', 'm4a', 'aac', 'mp3', 'opus', 'ogg', 'oga']);
-const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg']);
 
 let ffmpegPromise: Promise<FFmpeg> | null = null;
 
@@ -31,11 +29,6 @@ function progress(progressValue: number, message: string): void {
   post({ type: 'progress', progress: Math.max(0, Math.min(1, progressValue)), message });
 }
 
-function extensionFromName(name: string): string {
-  const dot = name.lastIndexOf('.');
-  return dot === -1 ? '' : name.slice(dot + 1).toLowerCase();
-}
-
 function validateInputFile(file: File): string {
   const extension = extensionFromName(file.name);
   if (file.size > MAX_ANALYSIS_FILE_BYTES) {
@@ -44,8 +37,8 @@ function validateInputFile(file: File): string {
   if (file.size === 0) {
     throw new Error('ファイルサイズが0です。音声データを含むファイルを選択してください。');
   }
-  if (extension && !ACCEPTED_EXTENSIONS.has(extension) && !VIDEO_EXTENSIONS.has(extension)) {
-    throw new Error('非対応形式です。音声（WAV / AIFF / FLAC / M4A / AAC / MP3 / Opus / OGG）または動画（MP4 / MOV / MKV / WebM）を選択してください。');
+  if (extension && !AUDIO_EXTENSION_SET.has(extension) && !VIDEO_EXTENSION_SET.has(extension)) {
+    throw new Error('非対応形式です。音声（WAV / AIFF / FLAC / M4A / AAC / MP3 / Opus / OGG）または動画（MP4 / MOV / MKV / WebM / AVI / WMV / FLV / MPG）を選択してください。');
   }
   if (!extension && file.type && !file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
     throw new Error('音声／動画ファイルとして認識できません。対応形式を選択してください。');

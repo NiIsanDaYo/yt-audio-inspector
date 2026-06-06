@@ -3,23 +3,25 @@ import type { AnalysisReport, AnalyzerWorkerResponse, DiagnosticItem, Severity }
 import { formatBytes, overallLabels, severityLabels } from './lib/format';
 import { REFERENCE_DIAGNOSTIC_IDS } from './lib/diagnostics';
 import { LARGE_FILE_NOTICE_BYTES, MAX_ANALYSIS_FILE_BYTES } from './lib/fileLimits';
+import { FILE_INPUT_ACCEPT, VIDEO_EXTENSION_SET, extensionFromName } from './lib/fileTypes';
 
 const SEVERITY_RANK: Record<Severity, number> = { normal: 0, info: 1, caution: 2, warning: 3 };
 
 type AppState = 'idle' | 'analyzing' | 'done' | 'error';
+type TestHookWindow = typeof window & {
+  __YTMI_ENABLE_TEST_HOOKS?: boolean;
+  __YTMI_LAST_REPORT?: AnalysisReport;
+};
 
 function createAnalyzerWorker(): Worker {
   return new Worker(new URL('./analyzer.worker.ts', import.meta.url), { type: 'module' });
 }
 
-const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg']);
-
 function fileNotices(file: File): string[] {
   if (file.size > MAX_ANALYSIS_FILE_BYTES) return [];
 
-  const dot = file.name.lastIndexOf('.');
-  const extension = dot === -1 ? '' : file.name.slice(dot + 1).toLowerCase();
-  const isVideo = VIDEO_EXTENSIONS.has(extension) || file.type.startsWith('video/');
+  const extension = extensionFromName(file.name);
+  const isVideo = VIDEO_EXTENSION_SET.has(extension) || file.type.startsWith('video/');
   const notices: string[] = [];
   if (isVideo) {
     notices.push('動画は音声トラックのみを解析します。可能なら音声ファイル（WAV / FLAC など）での確認を推奨します。');
@@ -109,6 +111,13 @@ function ResultView({ report }: { report: AnalysisReport }) {
   );
 }
 
+function exposeReportForTests(report: AnalysisReport): void {
+  const testWindow = window as TestHookWindow;
+  if (testWindow.__YTMI_ENABLE_TEST_HOOKS) {
+    testWindow.__YTMI_LAST_REPORT = report;
+  }
+}
+
 export default function App() {
   const workerRef = useRef<Worker | null>(null);
   const handledFileKeyRef = useRef<string | null>(null);
@@ -158,7 +167,7 @@ export default function App() {
         setProgress(1);
         setProgressMessage('完了');
         setState('done');
-        (window as typeof window & { __YTMI_LAST_REPORT?: AnalysisReport }).__YTMI_LAST_REPORT = message.report;
+        exposeReportForTests(message.report);
         worker.terminate();
         workerRef.current = null;
       } else if (message.type === 'error') {
@@ -232,13 +241,13 @@ export default function App() {
         <div>
           <label className="file-label" htmlFor="audio-file-input">音声ファイルを選択</label>
           <p>WAV / FLAC / AIFF / M4A / MP3 / Opus / OGG</p>
-          <p className="dropzone-sub">動画も可：MP4 / MOV / MKV / WebM</p>
+          <p className="dropzone-sub">動画も可：MP4 / MOV / MKV / WebM / AVI / WMV / FLV / MPG</p>
         </div>
         <input
           id="audio-file-input"
           className="file-input"
           type="file"
-          accept=".wav,.wave,.aif,.aiff,.flac,.m4a,.aac,.mp3,.opus,.ogg,.oga,.mp4,.m4v,.mov,.mkv,.webm,audio/*,video/*"
+          accept={FILE_INPUT_ACCEPT}
           disabled={state === 'analyzing'}
           onClick={(event) => {
             event.currentTarget.value = '';
