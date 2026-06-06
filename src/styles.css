@@ -130,7 +130,7 @@ p {
 }
 
 .footer-card-arrow {
-  color: var(--gray-400);
+  color: var(--gray-600);
   font-size: 0.75rem;
   transition: color 0.15s ease;
 }
@@ -209,13 +209,13 @@ h1 {
 
 .dropzone p.dropzone-sub {
   margin-top: 4px;
-  color: var(--gray-400);
+  color: var(--gray-600);
   font-size: 0.8rem;
 }
 
 .file-input {
   width: min(100%, 320px);
-  color: var(--gray-400);
+  color: var(--gray-700);
   font: inherit;
   font-size: 0.84rem;
 }
