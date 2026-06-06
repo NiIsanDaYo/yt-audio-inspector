@@ -18,6 +18,16 @@ function createAnalyzerWorker(): Worker {
   return new Worker(new URL('./analyzer.worker.ts', import.meta.url), { type: 'module' });
 }
 
+function browserCompatibilityError(): string | null {
+  if (typeof SharedArrayBuffer === 'undefined') {
+    return 'このブラウザでは解析に必要なSharedArrayBufferを利用できません。最新版のブラウザで開いてください。';
+  }
+  if (!window.crossOriginIsolated) {
+    return 'この配信環境では解析に必要なSharedArrayBufferを利用できません。サイト管理者はCOOP/COEPヘッダー設定を確認してください。';
+  }
+  return null;
+}
+
 function fileNotices(file: File): string[] {
   if (file.size > MAX_ANALYSIS_FILE_BYTES) return [];
 
@@ -137,6 +147,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [notices, setNotices] = useState<string[]>([]);
+  const [compatibilityError] = useState(browserCompatibilityError);
 
   const clearFileFallback = useCallback(() => {
     if (fileFallbackTimerRef.current !== null) {
@@ -228,12 +239,20 @@ export default function App() {
     if (!file) return;
 
     clearFileFallback();
+    if (compatibilityError) {
+      setReport(null);
+      setError(null);
+      setState('idle');
+      setNotices([]);
+      return;
+    }
+
     const nextFileKey = fileKey(file);
     if (!force && handledFileKeyRef.current === nextFileKey) return;
 
     handledFileKeyRef.current = nextFileKey;
     analyzeFile(file);
-  }, [analyzeFile, clearFileFallback]);
+  }, [analyzeFile, clearFileFallback, compatibilityError]);
 
   const startFileFallback = useCallback((input: HTMLInputElement) => {
     clearFileFallback();
@@ -294,7 +313,8 @@ export default function App() {
           className="file-input"
           type="file"
           accept={FILE_INPUT_ACCEPT}
-          disabled={state === 'analyzing'}
+          aria-describedby={compatibilityError ? 'compatibility-error' : undefined}
+          disabled={state === 'analyzing' || Boolean(compatibilityError)}
           onClick={(event) => {
             event.currentTarget.value = '';
             handledFileKeyRef.current = null;
@@ -304,6 +324,13 @@ export default function App() {
           onChange={(event) => handleFiles(event.target.files)}
         />
       </section>
+
+      {compatibilityError && (
+        <section id="compatibility-error" className="error-panel" role="alert">
+          <strong>この環境では解析できません</strong>
+          <p>{compatibilityError}</p>
+        </section>
+      )}
 
       {notices.length > 0 && (
         <section className="notice-panel" role="status">

@@ -115,6 +115,18 @@ test('analysis can be cancelled while ffmpeg is loading', async ({ page }) => {
   await expect(page.locator('input[type="file"]')).toBeFocused();
 });
 
+test('unsupported SharedArrayBuffer environment shows clear guidance', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'SharedArrayBuffer', { value: undefined, configurable: true });
+    Object.defineProperty(window, 'crossOriginIsolated', { value: false, configurable: true });
+  });
+
+  await page.goto('/');
+
+  await expect(page.getByRole('alert')).toContainText('SharedArrayBuffer');
+  await expect(page.locator('input[type="file"]')).toBeDisabled();
+});
+
 test('video with audio is analyzed and video without audio shows a clear error', async ({ page }) => {
   const report = await analyzeFixture(page, 'video-audio.mp4');
   expect(report.metadata.extension).toBe('mp4');

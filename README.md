@@ -58,6 +58,8 @@ npm run build:pages
 
 このコマンドは `ffmpeg-core.wasm` を Brotli 圧縮済みの `ffmpeg-core.wasm.br` として `dist/` に配置し、元の30 MiB超の `.wasm` は出力から削除します。
 
+`public/_redirects` は SPA フォールバック、`public/_headers` は COOP/COEP・CSP・Brotli wasm 配信用ヘッダーを定義しています。
+
 ffmpeg.wasm は SharedArrayBuffer を使用するため、配信サーバーに以下のレスポンスヘッダーが必要です。
 
 ```

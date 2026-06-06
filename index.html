@@ -7,12 +7,15 @@
     <meta name="theme-color" content="#f7f7f3" />
     <meta name="robots" content="index, follow" />
     <link rel="icon" type="image/webp" href="/favicon-48x48.webp" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="canonical" href="https://yt-audio.niisan.org/" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://yt-audio.niisan.org/" />
     <meta property="og:title" content="YouTube音源診断" />
     <meta property="og:description" content="YouTube向け音声マスターのTrue Peak・形式・LUFSをブラウザ内で診断。ファイルはアップロードされません。" />
     <meta property="og:image" content="https://yt-audio.niisan.org/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="NiIsan" />
     <meta property="og:locale" content="ja_JP" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -42,6 +45,11 @@
     </script>
   </head>
   <body>
+    <noscript>
+      <div style="margin: 2rem auto; max-width: 42rem; padding: 1rem; font-family: system-ui, sans-serif;">
+        このツールはJavaScriptが必要です。ブラウザのJavaScriptを有効にして再読み込みしてください。
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
