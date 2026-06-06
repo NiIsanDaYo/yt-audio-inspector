@@ -55,6 +55,10 @@ function assetUrl(pathOrUrl: string, base: URL): string {
   return new URL(pathOrUrl, base).toString();
 }
 
+function isVideoInput(file: File, extension: string): boolean {
+  return VIDEO_EXTENSION_SET.has(extension) || file.type.startsWith('video/');
+}
+
 async function loadFFmpeg(): Promise<FFmpeg> {
   if (!ffmpegPromise) {
     ffmpegPromise = (async () => {
@@ -84,7 +88,7 @@ async function captureExec(ffmpeg: FFmpeg, args: string[], timeout = -1): Promis
     const exitCode = await ffmpeg.exec(args, timeout);
     const logText = logs.join('\n');
     if (exitCode !== 0) {
-      if (/does not contain any stream|stream specifier.*matches no streams|Output file does not contain any stream|Cannot find a matching stream/i.test(logText)) {
+      if (/does not contain any stream|stream (specifier|map).*matches no streams|Output file does not contain any stream|Cannot find a matching stream/i.test(logText)) {
         throw new Error('音声ストリームが見つかりません。音声を含むファイルを選択してください。');
       }
       throw new Error(logText || `ffmpeg exited with code ${exitCode}`);
@@ -199,7 +203,22 @@ async function runEbur128(
 ): Promise<ReturnType<typeof parseEbur128Summary>> {
   const logText = await captureExec(
     ffmpeg,
-    ['-hide_banner', '-nostats', '-i', inputPath, '-filter_complex', 'ebur128=peak=true', '-f', 'null', '-'],
+    [
+      '-hide_banner',
+      '-nostats',
+      '-i',
+      inputPath,
+      '-map',
+      '0:a:0',
+      '-vn',
+      '-sn',
+      '-dn',
+      '-af',
+      'ebur128=peak=true',
+      '-f',
+      'null',
+      '-'
+    ],
     ebur128Timeout(fileSize, durationSec)
   );
   const parsed = parseEbur128Summary(logText);
@@ -212,6 +231,7 @@ async function runEbur128(
 async function analyze(file: File): Promise<AnalysisReport> {
   const extension = validateInputFile(file);
   progress(0.05, '確認中');
+  const videoInput = isVideoInput(file, extension);
 
   let musicMetadata: IAudioMetadata | null = null;
   try {
@@ -220,6 +240,7 @@ async function analyze(file: File): Promise<AnalysisReport> {
     musicMetadata = null;
   }
 
+  progress(0.12, videoInput ? '動画ファイルを読み込み中' : '読み込み中');
   const buffer = await file.arrayBuffer();
   const fileData = new Uint8Array(buffer);
   const headerSample = fileData.subarray(0, Math.min(fileData.length, 256 * 1024));
@@ -227,7 +248,7 @@ async function analyze(file: File): Promise<AnalysisReport> {
   const inputPath = `input.${extension.replace(/[^a-z0-9]/gi, '') || 'audio'}`;
   const ffmpeg = await loadFFmpeg();
 
-  progress(0.28, '読み込み中');
+  progress(0.28, '解析エンジンへ転送中');
   await ffmpeg.writeFile(inputPath, fileData);
   try {
     progress(0.42, '測定中');
