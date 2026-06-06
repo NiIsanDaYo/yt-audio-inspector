@@ -95,6 +95,7 @@ test('analysis can be cancelled while ffmpeg is loading', async ({ page }) => {
 
   await setFixtureFile(page, 'good-48k24.wav');
   await expect(page.getByText('準備中')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('progressbar', { name: '準備中' })).toBeVisible();
   await Promise.race([
     wasmRequestStarted,
     new Promise<void>((_, reject) => {
@@ -111,6 +112,7 @@ test('analysis can be cancelled while ffmpeg is loading', async ({ page }) => {
   await expect(cancelButton).toBeHidden();
   await expect(page.getByText('結果', { exact: true })).toBeHidden();
   await expect(page.getByRole('alert')).toBeHidden();
+  await expect(page.locator('input[type="file"]')).toBeFocused();
 });
 
 test('video with audio is analyzed and video without audio shows a clear error', async ({ page }) => {
@@ -133,6 +135,7 @@ test('44.1kHz audio is informational and clipped float WAV is warning', async ({
   expect(clipped.measurements.truePeakDbtp ?? -1).toBeGreaterThanOrEqual(0);
   expect(clipped.diagnostics.find((item) => item.id === 'true-peak')?.level).toBe('warning');
   expect(clipped.overallVerdict).toBe('has-warning');
+  await expect(page.locator('.summary-warning')).toContainText('True Peak');
 });
 
 test('invalid, broken, and zero-length files show clear errors', async ({ page }) => {
