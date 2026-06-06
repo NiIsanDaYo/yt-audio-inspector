@@ -51,15 +51,22 @@ function baseUrl(): URL {
   return new URL(base, self.location.origin);
 }
 
+function assetUrl(pathOrUrl: string, base: URL): string {
+  return new URL(pathOrUrl, base).toString();
+}
+
 async function loadFFmpeg(): Promise<FFmpeg> {
   if (!ffmpegPromise) {
     ffmpegPromise = (async () => {
       progress(0.18, '準備中');
       const ffmpeg = new FFmpeg();
       const root = baseUrl();
+      const wasmURL = import.meta.env.VITE_FFMPEG_WASM_URL
+        ? assetUrl(import.meta.env.VITE_FFMPEG_WASM_URL, root)
+        : assetUrl('ffmpeg-core/ffmpeg-core.wasm', root);
       await ffmpeg.load({
-        coreURL: new URL('ffmpeg-core/ffmpeg-core.js', root).toString(),
-        wasmURL: new URL('ffmpeg-core/ffmpeg-core.wasm', root).toString()
+        coreURL: assetUrl('ffmpeg-core/ffmpeg-core.js', root),
+        wasmURL
       });
       return ffmpeg;
     })();
