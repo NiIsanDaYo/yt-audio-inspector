@@ -44,6 +44,14 @@ npm run build
 
 `dist/` を静的ホストへ配置してください。`public/ffmpeg-core/` は Vite の public assets として配信されます。
 
+Cloudflare Pages へデプロイする場合は、単一ファイル25 MiB制限を避けるため、ビルドコマンドに以下を指定してください。
+
+```sh
+npm run build:pages
+```
+
+このコマンドは `ffmpeg-core.wasm` を Brotli 圧縮済みの `ffmpeg-core.wasm.br` として `dist/` に配置し、元の30 MiB超の `.wasm` は出力から削除します。
+
 ffmpeg.wasm は SharedArrayBuffer を使用するため、配信サーバーに以下のレスポンスヘッダーが必要です。
 
 ```

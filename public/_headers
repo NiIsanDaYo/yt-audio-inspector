@@ -12,6 +12,10 @@
 /ffmpeg-core/*
   Cache-Control: public, max-age=604800
 
+/ffmpeg-core/ffmpeg-core.wasm.br
+  Content-Type: application/wasm
+  Content-Encoding: br
+
 /*.webp
   Cache-Control: public, max-age=86400
 
