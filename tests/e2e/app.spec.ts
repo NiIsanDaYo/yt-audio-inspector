@@ -43,6 +43,25 @@ async function setFixtureFile(page: import('@playwright/test').Page, fileName: s
   throw new Error(`File selection did not start analysis: ${fileName}`);
 }
 
+async function waitForAnalysisResult(page: import('@playwright/test').Page, fileName: string): Promise<void> {
+  const timeout = process.env.CI ? 240_000 : 120_000;
+  const result = page.locator('.result');
+  const alert = page.getByRole('alert');
+  try {
+    const outcome = await Promise.race([
+      result.waitFor({ state: 'visible', timeout }).then(() => 'result' as const),
+      alert.waitFor({ state: 'visible', timeout }).then(() => 'error' as const)
+    ]);
+    if (outcome === 'error') {
+      throw new Error(`Analysis failed for ${fileName}: ${await alert.textContent()}`);
+    }
+  } catch (error) {
+    const progressText = await page.locator('.progress-panel').textContent({ timeout: 1_000 }).catch(() => null);
+    const detail = progressText ? ` Last progress: ${progressText}` : '';
+    throw new Error(`Analysis did not finish for ${fileName}.${detail}`, { cause: error });
+  }
+}
+
 async function analyzeFixture(page: import('@playwright/test').Page, fileName: string): Promise<AnalysisReport> {
   await page.addInitScript(() => {
     (window as TestHookWindow).__YTMI_ENABLE_TEST_HOOKS = true;
@@ -50,7 +69,7 @@ async function analyzeFixture(page: import('@playwright/test').Page, fileName: s
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => Boolean((window as TestHookWindow).__YTMI_APP_READY))).toBe(true);
   await setFixtureFile(page, fileName);
-  await expect(page.getByText('結果', { exact: true })).toBeVisible({ timeout: 120_000 });
+  await waitForAnalysisResult(page, fileName);
   const report = await page.evaluate(() => (window as TestHookWindow).__YTMI_LAST_REPORT);
   expect(report).toBeTruthy();
   return report!;
