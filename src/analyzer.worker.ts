@@ -84,9 +84,31 @@ async function captureExec(ffmpeg: FFmpeg, args: string[], timeout = -1): Promis
     logs.push(message);
   };
   ffmpeg.on('log', handler);
+  let timedOut = false;
+  let timeoutId: number | undefined;
   try {
-    const exitCode = await ffmpeg.exec(args, timeout);
+    const execPromise = ffmpeg.exec(args, -1).catch((error) => {
+      if (timedOut) return 1;
+      throw error;
+    });
+    const exitCode =
+      timeout > 0
+        ? await Promise.race([
+            execPromise,
+            new Promise<number>((resolve) => {
+              timeoutId = self.setTimeout(() => {
+                timedOut = true;
+                ffmpeg.terminate();
+                ffmpegPromise = null;
+                resolve(1);
+              }, timeout);
+            })
+          ])
+        : await execPromise;
     const logText = logs.join('\n');
+    if (timedOut) {
+      throw new Error('解析が時間内に完了しませんでした。大きなファイルの場合は音声だけを書き出してから再度試してください。');
+    }
     if (exitCode !== 0) {
       if (/does not contain any stream|stream (specifier|map).*matches no streams|Output file does not contain any stream|Cannot find a matching stream/i.test(logText)) {
         throw new Error('音声ストリームが見つかりません。音声を含むファイルを選択してください。');
@@ -95,6 +117,9 @@ async function captureExec(ffmpeg: FFmpeg, args: string[], timeout = -1): Promis
     }
     return logText;
   } finally {
+    if (timeoutId !== undefined) {
+      self.clearTimeout(timeoutId);
+    }
     ffmpeg.off('log', handler);
   }
 }
