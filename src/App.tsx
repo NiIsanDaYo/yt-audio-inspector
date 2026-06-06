@@ -1,0 +1,284 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AnalysisReport, AnalyzerWorkerResponse, DiagnosticItem, Severity } from './types';
+import { formatBytes, overallLabels, severityLabels } from './lib/format';
+import { REFERENCE_DIAGNOSTIC_IDS } from './lib/diagnostics';
+import { LARGE_FILE_NOTICE_BYTES, MAX_ANALYSIS_FILE_BYTES } from './lib/fileLimits';
+
+const SEVERITY_RANK: Record<Severity, number> = { normal: 0, info: 1, caution: 2, warning: 3 };
+
+type AppState = 'idle' | 'analyzing' | 'done' | 'error';
+
+function createAnalyzerWorker(): Worker {
+  return new Worker(new URL('./analyzer.worker.ts', import.meta.url), { type: 'module' });
+}
+
+const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg']);
+
+function fileNotices(file: File): string[] {
+  if (file.size > MAX_ANALYSIS_FILE_BYTES) return [];
+
+  const dot = file.name.lastIndexOf('.');
+  const extension = dot === -1 ? '' : file.name.slice(dot + 1).toLowerCase();
+  const isVideo = VIDEO_EXTENSIONS.has(extension) || file.type.startsWith('video/');
+  const notices: string[] = [];
+  if (isVideo) {
+    notices.push('動画は音声トラックのみを解析します。可能なら音声ファイル（WAV / FLAC など）での確認を推奨します。');
+  }
+  if (file.size > LARGE_FILE_NOTICE_BYTES) {
+    notices.push('大容量ファイルはブラウザのメモリを多く使い、解析が重くなる・失敗することがあります。音声ファイルの利用を推奨します。');
+  }
+  return notices;
+}
+
+function SeverityBadge({ level }: { level: Severity }) {
+  return <span className={`badge badge-${level}`}>{severityLabels[level]}</span>;
+}
+
+function DiagnosticRow({ item }: { item: DiagnosticItem }) {
+  return (
+    <article className={`diagnostic diagnostic-${item.level}`}>
+      <div className="diagnostic-heading">
+        <div>
+          <h3>{item.label}</h3>
+          <p className="diagnostic-value">{item.value}</p>
+        </div>
+        <SeverityBadge level={item.level} />
+      </div>
+      <p className="diagnostic-reason">{item.reason}</p>
+      <p className="diagnostic-reco">{item.recommendation}</p>
+    </article>
+  );
+}
+
+function resultSummary(worst: DiagnosticItem | null): string {
+  if (!worst || SEVERITY_RANK[worst.level] < SEVERITY_RANK.caution) {
+    return '必須項目に注意・警告はありません';
+  }
+  if (worst.id === 'true-peak') {
+    return `True Peak ${worst.value}（${worst.reason.replace(/。$/, '')}）`;
+  }
+  return `${worst.label}：${worst.recommendation.replace(/。$/, '')}`;
+}
+
+function ResultView({ report }: { report: AnalysisReport }) {
+  const core = report.diagnostics.filter((item) => !REFERENCE_DIAGNOSTIC_IDS.has(item.id));
+  const reference = report.diagnostics.filter((item) => REFERENCE_DIAGNOSTIC_IDS.has(item.id));
+  const worst = core.reduce<DiagnosticItem | null>(
+    (acc, item) => (acc && SEVERITY_RANK[acc.level] >= SEVERITY_RANK[item.level] ? acc : item),
+    null
+  );
+  const needsAction = worst !== null && SEVERITY_RANK[worst.level] >= SEVERITY_RANK.caution;
+
+  return (
+    <section className="result" aria-live="polite">
+      <div className="result-header">
+        <div>
+          <p className="eyebrow">結果</p>
+          <h2>{report.metadata.fileName}</h2>
+          <p className="file-meta">
+            {formatBytes(report.metadata.fileSize)} / {report.metadata.container}
+          </p>
+        </div>
+        <span className={`overall overall-${report.overallVerdict}`}>{overallLabels[report.overallVerdict]}</span>
+      </div>
+
+      <p className={`summary ${needsAction ? 'summary-action' : 'summary-ok'}`}>
+        {resultSummary(worst)}
+      </p>
+
+      <section className="diagnostics" aria-labelledby="core-title">
+        <h2 id="core-title">必須チェック</h2>
+        <div className="diagnostic-list">
+          {core.map((item) => (
+            <DiagnosticRow key={item.id} item={item} />
+          ))}
+        </div>
+      </section>
+
+      {reference.length > 0 && (
+        <section className="diagnostics reference" aria-labelledby="reference-title">
+          <h2 id="reference-title">参考（合わせる必要はありません）</h2>
+          <div className="diagnostic-list">
+            {reference.map((item) => (
+              <DiagnosticRow key={item.id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+    </section>
+  );
+}
+
+export default function App() {
+  const workerRef = useRef<Worker | null>(null);
+  const handledFileKeyRef = useRef<string | null>(null);
+  const fileFallbackTimerRef = useRef<number | null>(null);
+  const [state, setState] = useState<AppState>('idle');
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [report, setReport] = useState<AnalysisReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [notices, setNotices] = useState<string[]>([]);
+
+  const clearFileFallback = useCallback(() => {
+    if (fileFallbackTimerRef.current !== null) {
+      window.clearInterval(fileFallbackTimerRef.current);
+      fileFallbackTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearFileFallback();
+      workerRef.current?.terminate();
+    };
+  }, [clearFileFallback]);
+
+  const fileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
+
+  const analyzeFile = useCallback((file: File) => {
+    workerRef.current?.terminate();
+    const worker = createAnalyzerWorker();
+    workerRef.current = worker;
+    setState('analyzing');
+    setReport(null);
+    setError(null);
+    setProgress(0);
+    setProgressMessage('解析中');
+    setNotices(fileNotices(file));
+
+    worker.onmessage = (event: MessageEvent<AnalyzerWorkerResponse>) => {
+      const message = event.data;
+      if (message.type === 'progress') {
+        setProgress(message.progress);
+        setProgressMessage(message.message);
+      } else if (message.type === 'result') {
+        setReport(message.report);
+        setProgress(1);
+        setProgressMessage('完了');
+        setState('done');
+        (window as typeof window & { __YTMI_LAST_REPORT?: AnalysisReport }).__YTMI_LAST_REPORT = message.report;
+        worker.terminate();
+        workerRef.current = null;
+      } else if (message.type === 'error') {
+        setError(message.message);
+        setState('error');
+        setProgress(0);
+        setProgressMessage('');
+        worker.terminate();
+        workerRef.current = null;
+      }
+    };
+
+    worker.onerror = (event) => {
+      setError(event.message || 'Workerの初期化に失敗しました。');
+      setState('error');
+      worker.terminate();
+      workerRef.current = null;
+    };
+
+    worker.postMessage({ type: 'analyze', file });
+  }, []);
+
+  const handleFiles = useCallback((files: FileList | null, force = false) => {
+    const file = files?.item(0);
+    if (!file) return;
+
+    clearFileFallback();
+    const nextFileKey = fileKey(file);
+    if (!force && handledFileKeyRef.current === nextFileKey) return;
+
+    handledFileKeyRef.current = nextFileKey;
+    analyzeFile(file);
+  }, [analyzeFile, clearFileFallback]);
+
+  const startFileFallback = useCallback((input: HTMLInputElement) => {
+    clearFileFallback();
+    const startedAt = Date.now();
+    fileFallbackTimerRef.current = window.setInterval(() => {
+      if (input.files?.length) {
+        handleFiles(input.files);
+        return;
+      }
+      if (Date.now() - startedAt > 10_000) {
+        clearFileFallback();
+      }
+    }, 150);
+  }, [clearFileFallback, handleFiles]);
+
+  const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    handleFiles(event.dataTransfer.files, true);
+  };
+
+  return (
+    <main className="app">
+      <section className="hero">
+        <h1>YouTube音源診断</h1>
+        <p className="privacy">ファイルはアップロードされません。すべてブラウザ内で解析します。</p>
+      </section>
+
+      <section
+        className={`dropzone ${dragging ? 'is-dragging' : ''}`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        <div>
+          <label className="file-label" htmlFor="audio-file-input">音声ファイルを選択</label>
+          <p>WAV / FLAC / AIFF / M4A / MP3 / Opus / OGG</p>
+          <p className="dropzone-sub">動画も可：MP4 / MOV / MKV / WebM</p>
+        </div>
+        <input
+          id="audio-file-input"
+          className="file-input"
+          type="file"
+          accept=".wav,.wave,.aif,.aiff,.flac,.m4a,.aac,.mp3,.opus,.ogg,.oga,.mp4,.m4v,.mov,.mkv,.webm,audio/*,video/*"
+          disabled={state === 'analyzing'}
+          onClick={(event) => {
+            event.currentTarget.value = '';
+            handledFileKeyRef.current = null;
+            startFileFallback(event.currentTarget);
+          }}
+          onChange={(event) => handleFiles(event.target.files)}
+        />
+      </section>
+
+      {notices.length > 0 && (
+        <section className="notice-panel" role="status">
+          <ul>
+            {notices.map((notice) => (
+              <li key={notice}>{notice}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {state === 'analyzing' && (
+        <section className="progress-panel" aria-live="polite">
+          <div className="progress-head">
+            <strong>{progressMessage}</strong>
+            <span>{Math.round(progress * 100)}%</span>
+          </div>
+          <div className="progress-track">
+            <div style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        </section>
+      )}
+
+      {state === 'error' && error && (
+        <section className="error-panel" role="alert">
+          <strong>エラー</strong>
+          <p>{error}</p>
+        </section>
+      )}
+
+      {report && <ResultView report={report} />}
+    </main>
+  );
+}
