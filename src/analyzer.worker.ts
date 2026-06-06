@@ -184,11 +184,18 @@ function buildMetadata(
   };
 }
 
-async function runEbur128(ffmpeg: FFmpeg, inputPath: string): Promise<ReturnType<typeof parseEbur128Summary>> {
+function ebur128Timeout(fileSize: number): number {
+  const baseMs = 120_000;
+  const perMbMs = 600;
+  const fileMb = fileSize / (1024 * 1024);
+  return Math.max(baseMs, Math.round(baseMs + fileMb * perMbMs));
+}
+
+async function runEbur128(ffmpeg: FFmpeg, inputPath: string, fileSize: number): Promise<ReturnType<typeof parseEbur128Summary>> {
   const logText = await captureExec(
     ffmpeg,
     ['-hide_banner', '-nostats', '-i', inputPath, '-filter_complex', 'ebur128=peak=true', '-f', 'null', '-'],
-    120_000
+    ebur128Timeout(fileSize)
   );
   const parsed = parseEbur128Summary(logText);
   if (parsed.integratedLufs === null || parsed.truePeakDbtp === null) {
@@ -219,7 +226,7 @@ async function analyze(file: File): Promise<AnalysisReport> {
   await ffmpeg.writeFile(inputPath, fileData);
   try {
     progress(0.42, '測定中');
-    const overall = await runEbur128(ffmpeg, inputPath);
+    const overall = await runEbur128(ffmpeg, inputPath, file.size);
 
     const measurements = {
       truePeakDbtp: overall.truePeakDbtp,

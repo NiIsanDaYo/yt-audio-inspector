@@ -162,12 +162,19 @@ function parseAiff(data: Uint8Array): HeaderMetadataHint | null {
         duration: sampleRate ? frames / sampleRate : undefined
       });
       if (formType === 'AIFC' && size >= 22) {
-        const compression = ascii(data, body + 18, 4);
-        if (compression === 'fl32' || compression === 'FL32' || compression === 'fl64') {
+        const compression = ascii(data, body + 18, 4).trim();
+        const compUp = compression.toUpperCase();
+        if (compUp === 'FL32' || compUp === 'FL64') {
           hint.codec = 'AIFF float';
           hint.bitDepthType = 'float';
-        } else if (compression !== 'NONE') {
+        } else if (compUp === 'NONE' || compUp === 'SOWT' || compUp === 'TWOS' || compUp === 'IN24' || compUp === 'IN32') {
+          hint.codec = compUp === 'NONE' ? 'AIFF-C PCM' : `AIFF-C ${compression}`;
+        } else if (compUp === 'ULAW' || compUp === 'ALAW' || compUp === 'IMA4' || compUp === 'MAC3' || compUp === 'MAC6') {
           hint.codec = `AIFF-C ${compression}`;
+          hint.codecClass = 'lossy';
+        } else {
+          hint.codec = `AIFF-C ${compression}`;
+          hint.codecClass = 'unknown';
         }
       }
     }
