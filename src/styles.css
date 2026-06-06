@@ -435,6 +435,11 @@ h1 {
   color: var(--cau-fg);
 }
 
+.summary-warning {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
 .diagnostics {
   margin-top: 26px;
 }

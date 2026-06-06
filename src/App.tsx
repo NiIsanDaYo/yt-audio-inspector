@@ -71,6 +71,11 @@ function ResultView({ report }: { report: AnalysisReport }) {
     null
   );
   const needsAction = worst !== null && SEVERITY_RANK[worst.level] >= SEVERITY_RANK.caution;
+  const summaryClass = !needsAction
+    ? 'summary-ok'
+    : worst?.level === 'warning'
+      ? 'summary-warning'
+      : 'summary-action';
 
   return (
     <section className="result" aria-live="polite">
@@ -85,7 +90,7 @@ function ResultView({ report }: { report: AnalysisReport }) {
         <span className={`overall overall-${report.overallVerdict}`}>{overallLabels[report.overallVerdict]}</span>
       </div>
 
-      <p className={`summary ${needsAction ? 'summary-action' : 'summary-ok'}`}>
+      <p className={`summary ${summaryClass}`}>
         {resultSummary(worst)}
       </p>
 
@@ -121,8 +126,10 @@ function exposeReportForTests(report: AnalysisReport): void {
 
 export default function App() {
   const workerRef = useRef<Worker | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const handledFileKeyRef = useRef<string | null>(null);
   const fileFallbackTimerRef = useRef<number | null>(null);
+  const dragDepthRef = useRef(0);
   const [state, setState] = useState<AppState>('idle');
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
@@ -166,6 +173,7 @@ export default function App() {
     setNotices(fileNotices(file));
 
     worker.onmessage = (event: MessageEvent<AnalyzerWorkerResponse>) => {
+      if (workerRef.current !== worker) return;
       const message = event.data;
       if (message.type === 'progress') {
         setProgress(message.progress);
@@ -189,6 +197,7 @@ export default function App() {
     };
 
     worker.onerror = (event) => {
+      if (workerRef.current !== worker) return;
       setError(event.message || 'Workerの初期化に失敗しました。');
       setState('error');
       worker.terminate();
@@ -209,6 +218,9 @@ export default function App() {
     setNotices([]);
     setProgress(0);
     setProgressMessage('');
+    window.requestAnimationFrame(() => {
+      fileInputRef.current?.focus();
+    });
   }, [clearFileFallback]);
 
   const handleFiles = useCallback((files: FileList | null, force = false) => {
@@ -239,6 +251,7 @@ export default function App() {
 
   const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    dragDepthRef.current = 0;
     setDragging(false);
     handleFiles(event.dataTransfer.files, true);
   };
@@ -252,11 +265,22 @@ export default function App() {
 
       <section
         className={`dropzone ${dragging ? 'is-dragging' : ''}`}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          dragDepthRef.current += 1;
+          setDragging(true);
+        }}
         onDragOver={(event) => {
           event.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+          if (dragDepthRef.current === 0) {
+            setDragging(false);
+          }
+        }}
         onDrop={onDrop}
       >
         <div>
@@ -265,6 +289,7 @@ export default function App() {
           <p className="dropzone-sub">動画も可：MP4 / MOV / MKV / WebM / AVI / WMV / FLV / MPG</p>
         </div>
         <input
+          ref={fileInputRef}
           id="audio-file-input"
           className="file-input"
           type="file"
@@ -296,7 +321,14 @@ export default function App() {
             <strong>{progressMessage}</strong>
             <span>{Math.round(progress * 100)}%</span>
           </div>
-          <div className="progress-track">
+          <div
+            className="progress-track"
+            role="progressbar"
+            aria-label={progressMessage || '解析進捗'}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+          >
             <div style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
           <div className="progress-actions">
