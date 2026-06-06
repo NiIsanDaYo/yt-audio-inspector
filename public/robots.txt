@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yt-audio.niisan.org/sitemap.xml

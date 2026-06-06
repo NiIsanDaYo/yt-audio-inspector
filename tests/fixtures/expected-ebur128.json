@@ -1,0 +1,27 @@
+{
+  "good": {
+    "integratedLufs": -4,
+    "samplePeakDbfs": -1,
+    "truePeakDbtp": -1
+  },
+  "mp3": {
+    "integratedLufs": -3.5,
+    "samplePeakDbfs": -0.4,
+    "truePeakDbtp": -0.4
+  },
+  "sample441": {
+    "integratedLufs": -9,
+    "samplePeakDbfs": -6,
+    "truePeakDbtp": -6
+  },
+  "clipped": {
+    "integratedLufs": -1.4,
+    "samplePeakDbfs": 1.6,
+    "truePeakDbtp": 1.6
+  },
+  "videoAudio": {
+    "integratedLufs": -3.5,
+    "samplePeakDbfs": 0,
+    "truePeakDbtp": 0
+  }
+}
