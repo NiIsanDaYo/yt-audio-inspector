@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import type { LogEvent } from '@ffmpeg/ffmpeg';
 import { parseBlob } from 'music-metadata';
 import type { IAudioMetadata } from 'music-metadata';
@@ -32,7 +32,7 @@ function progress(progressValue: number, message: string): void {
 function validateInputFile(file: File): string {
   const extension = extensionFromName(file.name);
   if (file.size > MAX_ANALYSIS_FILE_BYTES) {
-    throw new Error('500MBを超えるファイルはブラウザのメモリ制限を避けるため解析できません。');
+    throw new Error('2GBを超えるファイルはブラウザの負荷が大きいため解析できません。音声だけを書き出してから確認してください。');
   }
   if (file.size === 0) {
     throw new Error('ファイルサイズが0です。音声データを含むファイルを選択してください。');
@@ -241,15 +241,17 @@ async function analyze(file: File): Promise<AnalysisReport> {
   }
 
   progress(0.12, videoInput ? '動画ファイルを読み込み中' : '読み込み中');
-  const buffer = await file.arrayBuffer();
-  const fileData = new Uint8Array(buffer);
-  const headerSample = fileData.subarray(0, Math.min(fileData.length, 256 * 1024));
+  const headerBuffer = await file.slice(0, 256 * 1024).arrayBuffer();
+  const headerSample = new Uint8Array(headerBuffer);
   const metadata = buildMetadata(file, extension, musicMetadata, headerSample);
-  const inputPath = `input.${extension.replace(/[^a-z0-9]/gi, '') || 'audio'}`;
+  const inputName = `input.${extension.replace(/[^a-z0-9]/gi, '') || 'audio'}`;
+  const mountPoint = `/input-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const inputPath = `${mountPoint}/${inputName}`;
   const ffmpeg = await loadFFmpeg();
 
-  progress(0.28, '解析エンジンへ転送中');
-  await ffmpeg.writeFile(inputPath, fileData);
+  progress(0.28, '解析準備中');
+  await ffmpeg.createDir(mountPoint);
+  await ffmpeg.mount(FFFSType.WORKERFS, { blobs: [{ name: inputName, data: file }] }, mountPoint);
   try {
     progress(0.42, '測定中');
     const overall = await runEbur128(ffmpeg, inputPath, file.size, metadata.duration ?? undefined);
@@ -268,7 +270,8 @@ async function analyze(file: File): Promise<AnalysisReport> {
       overallVerdict: diagnostics.overallVerdict
     };
   } finally {
-    await ffmpeg.deleteFile(inputPath).catch(() => undefined);
+    await ffmpeg.unmount(mountPoint).catch(() => undefined);
+    await ffmpeg.deleteDir(mountPoint).catch(() => undefined);
   }
 }
 

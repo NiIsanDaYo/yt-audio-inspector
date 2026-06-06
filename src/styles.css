@@ -259,6 +259,35 @@ h1 {
   transition: width 0.25s ease;
 }
 
+.progress-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.cancel-button {
+  border: 1px solid var(--gray-300);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--gray-700);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0.54rem 0.9rem;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.cancel-button:hover {
+  border-color: var(--gray-400);
+  color: var(--gray-900);
+  background: var(--gray-100);
+}
+
+.cancel-button:active {
+  background: var(--gray-200);
+}
+
 @keyframes shimmer {
   0%, 100% { background-position: 200% 0; }
   50% { background-position: -200% 0; }
