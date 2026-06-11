@@ -106,9 +106,8 @@ p {
 }
 
 .footer-card:hover {
-  border-color: #9ca3af;
-  box-shadow: 0 14px 28px -22px rgb(15 23 42 / 0.35),
-              0 4px 10px -6px rgb(15 23 42 / 0.12);
+  border-color: var(--gray-400);
+  box-shadow: var(--shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -202,7 +201,7 @@ h1 {
 
 .dropzone p {
   margin: 0;
-  color: var(--gray-500);
+  color: var(--gray-600);
   font-size: 0.875rem;
   line-height: 1.5;
 }
