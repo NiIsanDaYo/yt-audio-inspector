@@ -9,130 +9,106 @@ body {
   height: 630px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-.left {
-  background: #f7f7f3;
+  background: #faf9f6;
+  color: #1d1c1a;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 72px 64px 56px;
+  padding: 88px 96px 72px;
 }
 .title {
-  font-size: 82px;
-  font-weight: 700;
-  color: #111827;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: 74px;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
 }
 .subtitle {
-  font-size: 26px;
-  font-weight: 500;
-  color: #6b7280;
-  margin-top: 20px;
-  line-height: 1.5;
+  font-size: 27px;
+  color: #78726a;
+  margin-top: 22px;
+  line-height: 1.6;
 }
-.url {
-  font-size: 18px;
-  font-weight: 600;
-  color: #9ca3af;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.rows {
+  width: 100%;
+  margin-top: 64px;
 }
-.right {
-  background: #111827;
-  position: relative;
-  overflow: hidden;
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 28px 0;
+  border-top: 1.5px solid #e8e4dc;
 }
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,0.12);
+.row:last-child {
+  border-bottom: 1.5px solid #e8e4dc;
 }
-.circle-1 {
-  width: 420px;
-  height: 420px;
-  top: -40px;
-  right: -80px;
+.row .label {
+  font-size: 21px;
+  color: #78726a;
+  margin-bottom: 8px;
 }
-.circle-2 {
-  width: 300px;
-  height: 300px;
-  top: 20px;
-  right: -20px;
+.row .value {
+  font-size: 34px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
-.circle-3 {
-  width: 160px;
-  height: 160px;
-  top: 50px;
-  right: 30px;
-  background: rgba(255,255,255,0.06);
-  border: none;
-}
-.dots {
-  position: absolute;
-  bottom: 80px;
-  right: 120px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-}
-/* waveform decoration */
-.wave {
-  position: absolute;
-  bottom: 180px;
-  left: 50px;
+.status {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 120px;
+  gap: 10px;
+  font-size: 23px;
+  font-weight: 600;
+  margin-bottom: 5px;
 }
-.bar {
-  width: 4px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.10);
+.status .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.status-ok { color: #2e6b48; }
+.status-ok .dot { background: #2e6b48; }
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: auto;
+}
+.url {
+  font-size: 20px;
+  font-weight: 600;
+  color: #a39d94;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.note {
+  font-size: 20px;
+  color: #a39d94;
 }
 </style>
 </head>
 <body>
-<div class="left">
-  <div>
-    <div class="title">YouTube<br>音源診断</div>
-    <div class="subtitle">True Peak・形式・LUFSを<br>ブラウザ内で診断</div>
+<div>
+  <div class="title">YouTube音源診断</div>
+  <div class="subtitle">True Peak・形式・LUFSをブラウザ内で診断</div>
+</div>
+<div class="rows">
+  <div class="row">
+    <div>
+      <div class="label">True Peak</div>
+      <div class="value">-1.0 dBTP</div>
+    </div>
+    <div class="status status-ok"><span class="dot"></span>正常</div>
   </div>
+  <div class="row">
+    <div>
+      <div class="label">サンプルレート</div>
+      <div class="value">48 kHz</div>
+    </div>
+    <div class="status status-ok"><span class="dot"></span>正常</div>
+  </div>
+</div>
+<div class="footer">
   <div class="url">yt-audio.niisan.org</div>
+  <div class="note">ファイルはアップロードされません</div>
 </div>
-<div class="right">
-  <div class="circle circle-1"></div>
-  <div class="circle circle-2"></div>
-  <div class="circle circle-3"></div>
-  <div class="wave" id="wave"></div>
-  <div class="dots" id="dots"></div>
-</div>
-<script>
-// generate dot grid
-const dotsEl = document.getElementById('dots');
-for (let i = 0; i < 16; i++) {
-  const d = document.createElement('div');
-  d.className = 'dot';
-  dotsEl.appendChild(d);
-}
-// generate waveform bars
-const waveEl = document.getElementById('wave');
-const heights = [20,35,55,70,90,65,80,100,75,50,85,95,60,40,70,55,80,45,30,65,90,50,35,75,60];
-heights.forEach(h => {
-  const b = document.createElement('div');
-  b.className = 'bar';
-  b.style.height = h + 'px';
-  waveEl.appendChild(b);
-});
-</script>
 </body>
 </html>
