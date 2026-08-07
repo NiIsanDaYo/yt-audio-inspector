@@ -134,6 +134,24 @@ function exposeReportForTests(report: AnalysisReport): void {
   }
 }
 
+function AdringBanner() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const script = document.createElement('script');
+    script.src = 'https://adring.net/widget/v1.js';
+    script.async = true;
+    script.dataset.siteId = '74fd4e95-7b87-42e5-84a8-f875925d7353';
+    script.dataset.variant = 'banner';
+    el.appendChild(script);
+    return () => {
+      el.removeChild(script);
+    };
+  }, []);
+  return <div ref={containerRef} className="adring-container" />;
+}
+
 export default function App() {
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -375,6 +393,8 @@ export default function App() {
       )}
 
       {report && <ResultView report={report} />}
+
+      <AdringBanner />
 
       <footer className="site-footer">
         <div className="footer-links">

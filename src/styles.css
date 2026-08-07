@@ -515,9 +515,14 @@ h1 {
   font-weight: 500;
 }
 
+/* ---------- Ad ---------- */
+.adring-container {
+  margin-top: 40px;
+}
+
 /* ---------- Footer ---------- */
 .site-footer {
-  margin-top: 80px;
+  margin-top: 40px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
