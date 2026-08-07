@@ -5,7 +5,7 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-iNlmPcd3zT0/9JNLDNFUfqlU0bvfP6j3qsjtJA+4yeA='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-iNlmPcd3zT0/9JNLDNFUfqlU0bvfP6j3qsjtJA+4yeA=' https://adring.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://adring.net; connect-src 'self' https://adring.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
