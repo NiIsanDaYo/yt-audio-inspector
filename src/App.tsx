@@ -146,7 +146,8 @@ function PreFooterSlot() {
     script.dataset.variant = 'banner';
     el.appendChild(script);
     return () => {
-      script.remove();
+      // script だけでなくウィジェットが注入した要素ごと片付ける
+      el.replaceChildren();
     };
   }, []);
   return <div ref={containerRef} className="pre-footer" />;
