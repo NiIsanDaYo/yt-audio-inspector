@@ -1,8 +1,0 @@
-# ビルド成果物は存在しなければ 404 を返す。
-# ここを下の SPA フォールバックに任せると、欠けている JS/WASM のURLに
-# index.html が 200 で返り、_headers の immutable 指定で1年キャッシュされる。
-# その端末はモジュール読み込みが MIME エラーで落ち続け、白紙/暗転から復帰できない。
-/assets/* /404.html 404
-/ffmpeg-core/* /404.html 404
-
-/* /index.html 200
