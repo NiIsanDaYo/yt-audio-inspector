@@ -146,7 +146,7 @@ function PreFooterSlot() {
     script.dataset.variant = 'banner';
     el.appendChild(script);
     return () => {
-      el.removeChild(script);
+      script.remove();
     };
   }, []);
   return <div ref={containerRef} className="pre-footer" />;
