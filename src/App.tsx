@@ -134,7 +134,7 @@ function exposeReportForTests(report: AnalysisReport): void {
   }
 }
 
-function AdringBanner() {
+function PreFooterSlot() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = containerRef.current;
@@ -149,7 +149,7 @@ function AdringBanner() {
       el.removeChild(script);
     };
   }, []);
-  return <div ref={containerRef} className="adring-container" />;
+  return <div ref={containerRef} className="pre-footer" />;
 }
 
 export default function App() {
@@ -394,7 +394,7 @@ export default function App() {
 
       {report && <ResultView report={report} />}
 
-      <AdringBanner />
+      <PreFooterSlot />
 
       <footer className="site-footer">
         <div className="footer-links">
