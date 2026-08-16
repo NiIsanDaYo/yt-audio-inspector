@@ -140,7 +140,7 @@ function PreFooterSlot() {
     const el = containerRef.current;
     if (!el) return;
     const script = document.createElement('script');
-    script.src = 'https://adring.net/widget/v1.js';
+    script.src = 'https://ar-cdn.net/widget/v1.js';
     script.async = true;
     script.dataset.siteId = '74fd4e95-7b87-42e5-84a8-f875925d7353';
     script.dataset.variant = 'banner';
