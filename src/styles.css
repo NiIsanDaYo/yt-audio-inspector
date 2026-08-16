@@ -520,13 +520,6 @@ h1 {
   margin-top: 40px;
 }
 
-/* 配信が無いときウィジェットは中身の無い min-height だけの箱を残すので畳む。
-   読み込み中はスケルトンが子要素として入るため :empty には一致しない。 */
-/* ウィジェットが display / min-height をインラインで当ててくるので !important が要る。 */
-.pre-footer > div:empty {
-  display: none !important;
-}
-
 /* ---------- Footer ---------- */
 .site-footer {
   margin-top: 40px;
